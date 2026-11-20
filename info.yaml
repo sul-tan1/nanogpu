@@ -1,0 +1,41 @@
+# Final digital project. The registered-loopback starter verifies the toolchain.
+project:
+  title: "Digital 1x1 Project Starter"
+  author: "Emron Arsala"
+  discord: "shotf"
+  description: "Clocked digital project starter with reset, enable, and registered data outputs"
+  language: "Verilog"
+  clock_hz: 10000000
+  tiles: "1x1"
+  top_module: "tt_um_sul_tan1_digital"
+  source_files:
+    - "project.v"
+    - "digital_core.v"
+
+pinout:
+  ui[0]: "DATA_IN0"
+  ui[1]: "DATA_IN1"
+  ui[2]: "DATA_IN2"
+  ui[3]: "DATA_IN3"
+  ui[4]: "DATA_IN4"
+  ui[5]: "DATA_IN5"
+  ui[6]: "DATA_IN6"
+  ui[7]: "DATA_IN7"
+  uo[0]: "DATA_OUT0"
+  uo[1]: "DATA_OUT1"
+  uo[2]: "DATA_OUT2"
+  uo[3]: "DATA_OUT3"
+  uo[4]: "DATA_OUT4"
+  uo[5]: "DATA_OUT5"
+  uo[6]: "DATA_OUT6"
+  uo[7]: "DATA_OUT7"
+  uio[0]: ""
+  uio[1]: ""
+  uio[2]: ""
+  uio[3]: ""
+  uio[4]: ""
+  uio[5]: ""
+  uio[6]: ""
+  uio[7]: ""
+
+yaml_version: 6
