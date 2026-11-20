@@ -1,31 +1,52 @@
-# Final-project plan
+# Final-project plan: GPU-inspired SIMD compute
+
+## Hard constraints
+
+- One digital tile; larger allocations are outside the project scope.
+- Workshop dimensions: approximately 161 x 111 micrometers. The official Sky130A
+  template specifies 161.00 x 111.52 micrometers; preserve its supplied geometry.
+- Digital circuitry only, using the template's standard pin interface.
+- Fit, timing, and physical correctness must pass the actual GDS, precheck, and
+  gate-level flow. The budget includes storage, control, interface, and physical
+  implementation overhead as well as arithmetic.
 
 ## Current status
 
-Infrastructure starter: a registered data path, reset/enable tests, local Windows
-tools, lint/synthesis commands, and Tiny Tapeout workflows. Final behavior is
-pending selection. This is a fresh local repository, separate from the ALU example.
+The production RTL remains the verified registered-data starter. The working
+direction is NanoGPGPU, a host-programmed two-lane 8-bit SIMD coprocessor, combined
+with a measured area/performance study. The preliminary [area study](area-study.md)
+is separate from production RTL and does not establish completed-chip fit.
 
 ## Candidate scope
 
-Choose one core function and complete its verification and physical implementation
-before adding features. For this area budget, avoid making a processor, a large
-memory, or a collection of unrelated peripherals the first milestone.
+Target one shared instruction stream, two small arithmetic lanes, a tiny register
+set, and a byte-oriented host interface. Programs and large data sets can remain
+on the host. Define instruction sequencing, handshakes, and writeback precisely
+before claiming autonomous program execution or a complete graphics pipeline.
 
-| Direction | Small first implementation | Potential extension after measuring area |
-| --- | --- | --- |
-| UART controller | 8N1 TX/RX, explicit handshake, synchronized RX, framing-error detection, one baud rate | Very small receive FIFO, overrun flag, selectable divider |
-| SPI controller | One chip select, mode 0, eight-bit transactions, programmable clock divider, ready/busy handshake | Another mode or short transaction queue |
-| PWM/audio generator | Clock divider, duty-cycle register, deterministic waveform output | Small phase accumulator or simple noise source |
+The first implementation should support add, subtract, maximum, XOR, and right
+shift by one, plus a clear operation for result state. Harden this complete
+baseline, including its host interface, before selecting multiplication hardware.
 
-The UART is a useful first candidate because it connects state machines, counters,
-input synchronization, interfaces, and protocol verification in one observable
-demo. This is an engineering recommendation, not a guarantee of area fit. Start
-without a FIFO and measure the hardened design before expanding it.
+Compare parallel and iterative multiplication at the same precision, workload,
+and implementation constraints. An 8-bit by 8-bit multiply has a full 16-bit
+product. Define signedness, accumulator width, and overflow behavior for MAC;
+include it only when the full design has enough implementation margin.
+
+The early basic two-lane datapath estimate is about 3,223 square micrometers of
+Sky130 HD cells. Parallel multiply raises it to about 7,321 and MAC to about 8,484.
+These estimates exclude important complete-chip costs; see the area-study limits.
+A 4-bit version is another comparison point with different numerical capability.
+
+A small graphics-like demo can use this same instruction set: the host supplies
+coordinates and displays pixel values computed by the chip. Report core throughput
+and host-transfer throughput separately. A higher clock frequency alone does not
+imply higher workload throughput when instructions take more cycles.
 
 ## Development order
 
-1. Specify the behavior, pin map, clock, reset, handshakes, and error cases.
+1. Specify instructions, registers/writeback, arithmetic rules, pin map, clock,
+   reset, host handshakes, and invalid-command behavior.
 2. Implement one small module at a time and add tests for that behavior.
 3. Integrate the Tiny Tapeout wrapper; update both source lists and the datasheet.
 4. Run local lint, functional tests, and synthesis before pushing.
@@ -55,8 +76,10 @@ Use "taped out" after submission, and "silicon-tested" after testing the fabrica
 
 ## Constraints reference
 
-The [official template](https://github.com/TinyTapeout/ttsky-verilog-template/blob/main/info.yaml)
-defines the `1x1` option and fixed Tiny Tapeout pin groups. The
+The [official tile sizes](https://github.com/TinyTapeout/tt-support-tools/blob/main/tech/sky130A/tile_sizes.yaml)
+and [1x1 floorplan](https://github.com/TinyTapeout/tt-support-tools/blob/main/tech/sky130A/def/tt_block_1x1_pg.def)
+define the geometry. The [project template](https://github.com/TinyTapeout/ttsky-verilog-template/blob/main/info.yaml)
+defines the fixed Tiny Tapeout pin groups. The
 [Tiny Tapeout FAQ](https://tinytapeout.com/faq/)
 explains why tile utilization and physical implementation must be checked. Keep
 this workshop's matching `ttsky26d` workflow references until deliberately

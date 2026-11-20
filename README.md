@@ -5,8 +5,9 @@ The initial target clock is 10 MHz. The workflow version remains `ttsky26d`,
 matching the workshop setup that passed for the ALU project.
 
 This is a working project scaffold. Its current behavior is an enabled 8-bit
-register with active-low asynchronous reset. The final application has not been
-selected or implemented yet. Passing starter tests validates the interface and
+register with active-low asynchronous reset. The working direction is a GPU-inspired
+two-lane SIMD coprocessor, with an [initial area study](docs/area-study.md).
+The application is not implemented yet. Passing starter tests validates the interface and
 tools; it is not evidence of a completed final design or a 1x1 physical build.
 
 ## Start here
