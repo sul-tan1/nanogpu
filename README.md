@@ -1,14 +1,13 @@
-# Digital ASIC final project
+# NanoGPU
 
-Author: Emron Arsala. Target: one digital Tiny Tapeout Sky130A tile (`1x1`).
-The initial target clock is 10 MHz. The workflow version remains `ttsky26d`,
-matching the workshop setup that passed for the ALU project.
+NanoGPU is a programmable 2D renderer and vector processor by Emron Arsala.
+Two 8-bit arithmetic lanes share a four-instruction program. A rectangle command
+generates its own pixel coordinates on chip. A compute command supplies ordinary
+operands to the same lanes. The host collects the result bytes and displays any
+image in its own framebuffer.
 
-This is a working project scaffold. Its current behavior is an enabled 8-bit
-register with active-low asynchronous reset. The working direction is a GPU-inspired
-two-lane SIMD coprocessor, with an [initial area study](docs/area-study.md).
-The application is not implemented yet. Passing starter tests validates the interface and
-tools; it is not evidence of a completed final design or a 1x1 physical build.
+The target is one digital Sky130A Tiny Tapeout tile with a 10 MHz clock. The
+design uses the `ttsky26d` workflow. See the [pinout, commands, and instruction set](docs/info.md).
 
 ## Start here
 
@@ -27,31 +26,30 @@ Setup is already prepared on this computer. If tool locations change, run
 `.\tt.cmd setup`. It can reuse the ALU project's installed suite, or install a
 local suite from your downloaded archive. See [Windows and GitHub setup](docs/windows-and-github.md).
 
-## Where to work
+The simulation checks a 64×64 render, reuses the same program to compute two
+averages, then draws a second rectangle with a different program. The image
+assembled from simulator output is saved to `test/output/nanogpu.png`.
+
+## Project files
 
 | File | Purpose |
 | --- | --- |
-| `docs/project-plan.md` | Choose a bounded final design and record milestones and measured results. |
-| `src/digital_core.v` | Replace the small starter core with your design. |
+| `docs/project-plan.md` | Design constraints and remaining architecture experiments. |
+| `src/nano_gpu.v` | Command decoder, scan counters, sequencer, and two arithmetic lanes. |
 | `src/project.v` | Map the design onto Tiny Tapeout pins. |
 | `test/test.py` | Shared functional tests for RTL and the generated gate-level netlist. |
 | `info.yaml` | Project title, author, pinout, top module, source list, clock, and tile size. |
 | `test/Makefile` | Keep `PROJECT_SOURCES` aligned with `info.yaml`. |
-| `docs/info.md` | Datasheet: describe the actual implemented behavior and hardware demo. |
-| `src/config.json` | Physical implementation configuration; starter clock period is 100 ns. |
+| `docs/info.md` | Datasheet, host protocol, and hardware demo. |
+| `src/config.json` | Physical implementation configuration and 100 ns clock period. |
 
 The GitHub workflow includes RTL lint/tests, GDS generation, precheck, gate-level
 simulation, documentation, and the layout viewer. FPGA builds are optional and
 manual. This local repository needs its own GitHub origin before those workflows
 can run remotely.
 
-## Results
-
-Local reports appear in `build/synth/`; waveforms and simulation results appear
-in `test/`. They are excluded from Git along with `.tools/` and PDK/build data.
-The generic Yosys cell count is useful during development. Only a successful
-Sky130 GDS build and physical checks establish that the final design fits `1x1`.
-Record that evidence before describing the project as hardened or taped out.
+Build reports appear in `build/synth/` and waveforms in `test/`. See the
+[Windows and GitHub setup](docs/windows-and-github.md) for hardening and artifact locations.
 
 The interface, configuration, and workflows derive from the
 [Tiny Tapeout Verilog template](https://github.com/TinyTapeout/ttsky-verilog-template).

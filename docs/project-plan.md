@@ -12,21 +12,17 @@
 
 ## Current status
 
-The production RTL remains the verified registered-data starter. The working
-direction is NanoGPGPU, a host-programmed two-lane 8-bit SIMD coprocessor, combined
-with a measured area/performance study. The preliminary [area study](area-study.md)
-is separate from production RTL and does not establish completed-chip fit.
+The first NanoGPU implementation shares two 8-bit SIMD lanes between a rectangle
+renderer and vector compute. It runs a host-loaded program of up to four
+instructions. See the [datasheet](info.md) for the implemented protocol and the
+[area study](area-study.md) for earlier arithmetic variants.
 
-## Candidate scope
+## Implemented scope and experiments
 
-Target one shared instruction stream, two small arithmetic lanes, a tiny register
-set, and a byte-oriented host interface. Programs and large data sets can remain
-on the host. Define instruction sequencing, handshakes, and writeback precisely
-before claiming autonomous program execution or a complete graphics pipeline.
-
-The first implementation should support add, subtract, maximum, XOR, and right
-shift by one, plus a clear operation for result state. Harden this complete
-baseline, including its host interface, before selecting multiplication hardware.
+The shared instruction set includes add, subtract, maximum, XOR, right shift by
+one, and identity. A synchronous byte interface transports commands and results.
+The rasterizer supplies pixel coordinates on a 64×64 canvas and the host stores
+the output image. The host can replace the program between commands.
 
 Compare parallel and iterative multiplication at the same precision, workload,
 and implementation constraints. An 8-bit by 8-bit multiply has a full 16-bit
@@ -38,10 +34,9 @@ Sky130 HD cells. Parallel multiply raises it to about 7,321 and MAC to about 8,4
 These estimates exclude important complete-chip costs; see the area-study limits.
 A 4-bit version is another comparison point with different numerical capability.
 
-A small graphics-like demo can use this same instruction set: the host supplies
-coordinates and displays pixel values computed by the chip. Report core throughput
-and host-transfer throughput separately. A higher clock frequency alone does not
-imply higher workload throughput when instructions take more cycles.
+The simulation demo shades a rectangle and reuses its program in compute mode.
+The chip generates every pixel coordinate after the draw command. Report core
+throughput and host-transfer throughput separately.
 
 ## Development order
 

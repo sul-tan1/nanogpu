@@ -3,15 +3,14 @@
 On Windows, run `..\tt.cmd test` from this folder, or `.\tt.cmd test` from the
 project root. On Linux, install `requirements.txt` and run `make` here.
 
-The current tests verify the registered-loopback starter, including all byte
-values, clock-edge behavior, enable/hold, asynchronous reset/recovery, and unused
-bidirectional pins. They also run in the GitHub gate-level job.
+The same tests run on RTL and the Sky130 gate netlist. They exercise the chip
+through the actual ready/valid pins and compare results to an independent Python
+model. The full-frame test and a shaded inset produce `test/output/nanogpu.png`.
 
-When implementing the final application, replace or extend these assertions to
-match the specification. Add a Python reference model and protocol drivers when
-appropriate. Keep clock/reset stimulus and enough settling time for gate-level
-simulation. Add every new RTL file to `info.yaml` and `PROJECT_SOURCES` in the
-Makefile.
+Cases cover program reuse across both modes, wraparound, lane order, dimensions
+at the canvas boundary, odd row widths, malformed packets, input gaps, output
+backpressure, pause on disable, and reset during a draw. The simulation samples
+after a 50 ns settling interval so the same bus driver works with gate delays.
 
 `test/tb.fst` is the waveform and `test/results.xml` is the JUnit result file.
 Inspect them locally with `tt.cmd wave` or download them from the GitHub test

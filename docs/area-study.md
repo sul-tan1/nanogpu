@@ -39,7 +39,7 @@ problems. Some register bits are optimized away in the basic case.
 The probe omits host packet decoding, result serialization, program storage and
 sequencing, instruction handshaking, and added writeback paths. Its ports are an
 experiment interface, not the final Tiny Tapeout pin mapping. It is not included
-in `info.yaml` and does not replace the production starter or its tests.
+in `info.yaml`. The implemented NanoGPU core has its own tests and host interface.
 
 ## Method and limitations
 

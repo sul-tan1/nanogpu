@@ -5,7 +5,7 @@
  */
 `default_nettype none
 
-module tt_um_sul_tan1_digital (
+module tt_um_sul_tan1_nanogpu (
     input  wire [7:0] ui_in,
     output wire [7:0] uo_out,
     input  wire [7:0] uio_in,
@@ -16,18 +16,22 @@ module tt_um_sul_tan1_digital (
     input  wire       rst_n
 );
 
-    digital_core core (
+    wire in_ready, out_valid;
+    nano_gpu core (
         .clk      (clk),
         .rst_n    (rst_n),
         .enable   (ena),
-        .data_in  (ui_in),
-        .data_out (uo_out)
+        .in_data   (ui_in),
+        .in_valid  (uio_in[0]),
+        .in_ready  (in_ready),
+        .out_data  (uo_out),
+        .out_valid (out_valid),
+        .out_ready (uio_in[1])
     );
 
-    // The starter uses only dedicated input and output pins.
-    assign uio_out = 8'b0;
-    assign uio_oe  = 8'b0;
-    wire _unused = &{uio_in, 1'b0};
+    assign uio_out = {4'b0, out_valid, in_ready, 2'b0};
+    assign uio_oe  = 8'b00001100;
+    wire _unused = &{uio_in[7:2], 1'b0};
 
 endmodule
 

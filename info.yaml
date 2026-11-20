@@ -1,16 +1,16 @@
-# Final digital project. The registered-loopback starter verifies the toolchain.
+# NanoGPU host-streamed graphics and compute processor.
 project:
-  title: "Digital 1x1 Project Starter"
+  title: "NanoGPU"
   author: "Emron Arsala"
   discord: "shotf"
-  description: "Clocked digital project starter with reset, enable, and registered data outputs"
+  description: "Two programmable 8-bit SIMD lanes shared by a 2D rectangle renderer and vector compute"
   language: "Verilog"
   clock_hz: 10000000
   tiles: "1x1"
-  top_module: "tt_um_sul_tan1_digital"
+  top_module: "tt_um_sul_tan1_nanogpu"
   source_files:
     - "project.v"
-    - "digital_core.v"
+    - "nano_gpu.v"
 
 pinout:
   ui[0]: "DATA_IN0"
@@ -29,10 +29,10 @@ pinout:
   uo[5]: "DATA_OUT5"
   uo[6]: "DATA_OUT6"
   uo[7]: "DATA_OUT7"
-  uio[0]: ""
-  uio[1]: ""
-  uio[2]: ""
-  uio[3]: ""
+  uio[0]: "IN_VALID"
+  uio[1]: "OUT_READY"
+  uio[2]: "IN_READY"
+  uio[3]: "OUT_VALID"
   uio[4]: ""
   uio[5]: ""
   uio[6]: ""
