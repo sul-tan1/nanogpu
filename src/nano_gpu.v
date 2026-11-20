@@ -70,6 +70,9 @@ module nano_gpu (
         if (!rst_n) begin
             state <= IDLE;
             program_valid <= 1'b0;
+            // Keep the sequencer defined before its first command. The mapped
+            // counter uses feedback even when the control path clears it.
+            pc <= 0;
         end else if (enable) begin
             case (state)
                 IDLE: if (in_valid) begin
