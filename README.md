@@ -30,6 +30,9 @@ The simulation checks a 64×64 render, reuses the same program to compute two
 averages, then draws a second rectangle with a different program. The image
 assembled from simulator output is saved to `test/output/nanogpu.png`.
 
+See [local verification and layout results](docs/verification.md) for the
+measured area, timing, and status of the fabrication submission.
+
 ## Project files
 
 | File | Purpose |

@@ -15,7 +15,9 @@
 The first NanoGPU implementation shares two 8-bit SIMD lanes between a rectangle
 renderer and vector compute. It runs a host-loaded program of up to four
 instructions. See the [datasheet](info.md) for the implemented protocol and the
-[area study](area-study.md) for earlier arithmetic variants.
+[area study](area-study.md) for earlier arithmetic variants. The design has a
+[locally verified layout](verification.md). GitHub checks and shuttle submission
+follow once the repository is connected.
 
 ## Implemented scope and experiments
 
