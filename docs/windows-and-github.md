@@ -23,7 +23,7 @@ CPython and test packages under `.tools/`. Run `.\tt.cmd doctor` to check the
 setup, `.\tt.cmd lint` to run Verilator, or `.\tt.cmd synth` for a Yosys structural
 check. Run `.\tt.cmd wave` after a test to inspect the clock, bus, and handshakes
 in GTKWave, or open `test/tb.fst` with Surfer in VS Code. Run `.\tt.cmd playground`
-for the interactive graphics and MAC simulator. Open the terminal's printed URL
+for the interactive photo, graphics, and compute demos. Open the terminal's printed URL
 if a browser tab does not open.
 
 ## Ubuntu and WSL

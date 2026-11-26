@@ -6,7 +6,7 @@ from pathlib import Path
 
 import cocotb
 
-from test import Host, pixels_for
+from test import Host, pixels_for, sobel_edges
 
 
 @cocotb.test()
@@ -22,6 +22,11 @@ async def run_playground_job(dut):
         sums = await host.mac_burst(groups)
         assert sums == [sum(a * b for a, b, _, _ in groups), sum(c * d for _, _, c, d in groups)]
         response = {'sums': sums, 'groups': len(groups), 'cycles': host.cycles - start}
+    elif request['mode'] == 'edges':
+        width, height = request['width'], request['height']
+        edges = await sobel_edges(host, request['pixels'], width, height)
+        response = {'pixels': edges, 'width': width, 'height': height,
+                    'cycles': host.cycles - start}
     else:
         pixels = [request['background']] * (64 * 64)
         draw_cycles = []

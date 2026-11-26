@@ -9,6 +9,7 @@ import webbrowser
 
 
 HTML = Path(__file__).with_suffix('.html')
+PHOTOS = HTML.parent.parent / 'docs' / 'assets'
 
 
 def integer(value, low, high, label):
@@ -20,7 +21,8 @@ def integer(value, low, high, label):
 def validate(data):
     if not isinstance(data, dict):
         raise ValueError('Expected a request object.')
-    if data.get('mode') == 'mac':
+    mode = data.get('mode')
+    if mode == 'mac':
         groups = data.get('groups')
         if not isinstance(groups, list) or not 1 <= len(groups) <= 255:
             raise ValueError('Enter between 1 and 255 operand groups.')
@@ -29,7 +31,15 @@ def validate(data):
                 raise ValueError(f'Group {index} needs four operands: a₀, b₀, a₁, b₁.')
             for value in group:
                 integer(value, -128, 127, f'Group {index} operand')
-    elif data.get('mode') == 'draw':
+    elif mode == 'edges':
+        width = integer(data.get('width'), 3, 64, 'Photo width')
+        height = integer(data.get('height'), 3, 64, 'Photo height')
+        pixels = data.get('pixels')
+        if not isinstance(pixels, list) or len(pixels) != width * height:
+            raise ValueError('Send one brightness value per photo pixel.')
+        for value in pixels:
+            integer(value, 0, 255, 'Pixel brightness')
+    elif mode == 'draw':
         integer(data.get('background'), 0, 255, 'Background')
         layers = data.get('layers')
         if not isinstance(layers, list) or not 1 <= len(layers) <= 6:
@@ -48,11 +58,15 @@ def validate(data):
             for opcode in program:
                 integer(opcode, 0, 6, f'{label} graphics opcode')
     else:
-        raise ValueError('Choose graphics or MAC compute.')
+        raise ValueError('Choose edge detection, graphics, or MAC compute.')
 
 
 def serve(simulate, *, open_browser):
-    html = HTML.read_bytes()
+    assets = {
+        '/': ('text/html; charset=utf-8', HTML.read_bytes()),
+        '/samples/coins.png': ('image/png', (PHOTOS / 'edge-coins.png').read_bytes()),
+        '/samples/coffee.png': ('image/png', (PHOTOS / 'edge-coffee.png').read_bytes()),
+    }
     lock = Lock()
 
     class Handler(BaseHTTPRequestHandler):
@@ -68,10 +82,10 @@ def serve(simulate, *, open_browser):
             self.send_content(status, 'application/json', json.dumps(data).encode('utf-8'))
 
         def do_GET(self):
-            if self.headers.get('Host') != host or self.path != '/':
+            if self.headers.get('Host') != host or self.path not in assets:
                 self.send_error(404)
                 return
-            self.send_content(200, 'text/html; charset=utf-8', html)
+            self.send_content(200, *assets[self.path])
 
         def do_POST(self):
             if self.headers.get('Host') != host or self.path != '/simulate':

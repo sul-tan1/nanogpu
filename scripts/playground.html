@@ -23,7 +23,7 @@
   h2 { font-size: 1.25rem; }
   p { margin: 8px 0 0; color: var(--muted); }
   code, output, textarea, .number { font-family: Consolas, "SFMono-Regular", monospace; }
-  .mode { display: flex; gap: 6px; margin: 24px 0 18px; }
+  .mode { display: flex; flex-wrap: wrap; gap: 6px; margin: 24px 0 18px; }
   .workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
   .panel { background: var(--panel); border: 1px solid var(--line); padding: 20px; border-radius: 14px; min-width: 0; }
   .top-row, .actions, .preview-head, .preview-foot, .rectangle-head {
@@ -32,7 +32,7 @@
   .top-row { align-items: end; margin: 14px 0 16px; }
   label { display: block; min-width: 0; color: var(--muted); font-size: .86rem; }
   select, input, button, textarea { font: inherit; }
-  select, input:not([type="range"]), textarea {
+  select, input:not([type="range"]):not([type="checkbox"]), textarea {
     color: var(--text); background: var(--field); border: 1px solid var(--line);
     border-radius: 7px; padding: 7px 8px; width: 100%;
   }
@@ -73,6 +73,18 @@
   .sum { background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
   .sum output { display: block; color: var(--accent); font-size: clamp(1.3rem, 3vw, 2.3rem); overflow-wrap: anywhere; }
   .sum span { color: var(--muted); }
+  .edge-toolbar { margin-bottom: 18px; }
+  .photo-controls { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .photo-controls label { flex: 1 1 180px; }
+  .photo-controls button { min-height: 38px; }
+  .edge-image { margin: 0; }
+  .edge-image .screen { display: grid; place-items: center; min-height: 100px; }
+  .edge-image canvas { aspect-ratio: auto; height: auto; image-rendering: auto; }
+  #edge-output { image-rendering: pixelated; }
+  .empty { margin: 0; padding: 24px; text-align: center; }
+  .edge-adjust { margin-top: 14px; }
+  .edge-adjust > label:first-child { margin-bottom: 8px; }
+  .edge-adjust input[type="checkbox"] { display: inline; margin: 0 4px 0 0; accent-color: var(--accent); }
   @media (max-width: 810px) { .workspace { grid-template-columns: 1fr; } main { padding: 28px 15px; } }
   @media (max-width: 390px) { .panel { padding: 13px; } .program { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
@@ -80,13 +92,61 @@
 <body>
 <main>
   <h1>NanoGPU <span>Playground</span></h1>
-  <p>Send your own shader or dot product through the Verilog simulator.</p>
+  <p>Find outlines in a photo, draw patterns, or try the chip’s arithmetic.</p>
   <nav class="mode" aria-label="Simulation mode">
-    <button type="button" data-view="graphics" aria-controls="graphics" aria-pressed="true">Graphics</button>
-    <button type="button" data-view="compute" aria-controls="compute" aria-pressed="false">MAC compute</button>
+    <button type="button" data-view="edges" aria-controls="edges" aria-pressed="true">Find edges</button>
+    <button type="button" data-view="graphics" aria-controls="graphics" aria-pressed="false">Draw patterns</button>
+    <button type="button" data-view="compute" aria-controls="compute" aria-pressed="false">Multiply &amp; add</button>
   </nav>
 
-  <section class="workspace" id="graphics" aria-label="Graphics workspace">
+  <section id="edges" aria-label="Edge detection workspace">
+    <div class="panel edge-toolbar">
+      <h2>Turn a photo into outlines</h2>
+      <p>Edges show where the photo changes quickly from light to dark. A coin sorter could use them to find the rim of each coin.</p>
+      <div class="photo-controls">
+        <label>Example photo
+          <select id="edge-example">
+            <option value="coins">Coins on a table</option>
+            <option value="coffee">Coffee cup</option>
+            <option value="custom" disabled>Your photo</option>
+          </select>
+        </label>
+        <button id="edge-upload" type="button">Choose your photo</button>
+        <input id="edge-file" type="file" accept="image/*" hidden aria-label="Choose your photo">
+        <button id="edge-run" type="button" class="primary" disabled>Run edge detection</button>
+      </div>
+      <p id="edge-status" class="status" role="status"></p>
+    </div>
+    <div class="workspace">
+      <figure class="panel edge-image">
+        <div class="preview-head"><h2>Before</h2><span id="edge-size" class="number"></span></div>
+        <div class="screen">
+          <canvas id="edge-input" aria-label="Grayscale photo sampled for edge detection" hidden></canvas>
+          <p id="edge-input-empty" class="empty">Choose a photo to preview it.</p>
+        </div>
+        <figcaption><p id="edge-caption" class="hint"></p></figcaption>
+      </figure>
+      <figure class="panel edge-image">
+        <div class="preview-head"><h2>Edges found</h2><button id="edge-download" type="button" disabled>Download PNG</button></div>
+        <div class="screen">
+          <canvas id="edge-output" aria-label="Outlines computed by NanoGPU" hidden></canvas>
+          <p id="edge-output-empty" class="empty">Run edge detection to see the outlines.</p>
+        </div>
+        <div class="edge-adjust">
+          <label>Minimum edge strength <output id="edge-threshold-value" for="edge-threshold">24</output>
+            <input id="edge-threshold" type="range" min="0" max="255" value="24" disabled>
+          </label>
+          <label><input id="edge-overlay" type="checkbox" disabled> Highlight edges on the photo</label>
+        </div>
+        <details>
+          <summary>What the chip does</summary>
+          <p>The browser makes a small grayscale copy of your photo. The Verilog simulator uses two NanoGPU lanes to measure left-to-right and top-to-bottom brightness changes in each 3 × 3 patch. Moving the slider hides weaker edges in the display.</p>
+        </details>
+      </figure>
+    </div>
+  </section>
+
+  <section class="workspace" id="graphics" aria-label="Graphics workspace" hidden>
     <form class="panel" id="draw-form">
       <h2>Scene</h2>
       <div class="top-row">
@@ -137,13 +197,13 @@
 
   <section class="workspace" id="compute" aria-label="Compute workspace" hidden>
     <form class="panel" id="mac-form">
-      <h2>Signed MAC burst</h2>
-      <p>Enter one group per line as <code>a0, b0, a1, b1</code>. Values range from −128 to 127.</p>
+      <h2>Two dot products</h2>
+      <p>Each row adds <code>a0 × b0</code> to the first total and <code>a1 × b1</code> to the second. Enter four numbers per row, from −128 to 127.</p>
       <label for="operands">Operand groups</label>
       <textarea id="operands" required spellcheck="false" rows="6">3, 5, 3, -5
 2, 7, 2, 7
 4, 2, 4, -2</textarea>
-      <button id="mac-run" type="submit" class="primary">Run MAC in RTL</button>
+      <button id="mac-run" type="submit" class="primary">Calculate both totals</button>
     </form>
     <section class="panel" aria-labelledby="sums-title">
       <h2 id="sums-title">32-bit sums</h2>
@@ -169,15 +229,99 @@
   const maxLayers = 6;
   const number = new Intl.NumberFormat('en');
   const canvas = $('canvas');
-  const ctx = canvas.getContext('2d');
+  const edgeExamples = {
+    coins: 'Look for the bright rims of the coins. Raise the slider to hide some surface texture.',
+    coffee: 'Look for the cup and its handle. A lower setting also picks up the table grain.',
+  };
   let pixels;
   let busy = false;
   let sceneRevision = 0;
+  let photoRevision = 0;
+  let photo;
+  let edges;
 
   function setStatus(id, text, error = false) {
     const node = $(id);
     node.textContent = text;
     node.classList.toggle('error', error);
+  }
+
+  function updateButtons() {
+    $('render').disabled = $('mac-run').disabled = busy;
+    $('edge-example').disabled = $('edge-upload').disabled = busy;
+    $('edge-run').disabled = busy || !photo;
+    $('edge-threshold').disabled = $('edge-overlay').disabled = $('edge-download').disabled = !edges;
+  }
+
+  function paintFrame(target, width, height, values, highlights) {
+    target.width = width;
+    target.height = height;
+    const ctx = target.getContext('2d');
+    const frame = ctx.createImageData(width, height);
+    for (let i = 0; i < values.length; i++) {
+      const offset = i * 4;
+      const highlight = highlights?.[i];
+      frame.data[offset] = highlight ? 255 : values[i];
+      frame.data[offset + 1] = highlight ? 198 : values[i];
+      frame.data[offset + 2] = highlight ? 138 : values[i];
+      frame.data[offset + 3] = 255;
+    }
+    ctx.putImageData(frame, 0, 0);
+  }
+
+  async function loadPhoto(url, caption) {
+    const revision = ++photoRevision;
+    photo = edges = null;
+    updateButtons();
+    $('edge-input').hidden = $('edge-output').hidden = true;
+    $('edge-input-empty').hidden = $('edge-output-empty').hidden = false;
+    $('edge-size').textContent = $('edge-caption').textContent = '';
+    setStatus('edge-status', 'Loading photo…');
+    try {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      if (revision !== photoRevision) return;
+      const scale = Math.min(1, size / Math.max(image.naturalWidth, image.naturalHeight));
+      const width = Math.max(3, Math.round(image.naturalWidth * scale));
+      const height = Math.max(3, Math.round(image.naturalHeight * scale));
+      const scratch = document.createElement('canvas');
+      scratch.width = width;
+      scratch.height = height;
+      const ctx = scratch.getContext('2d', {willReadFrequently: true});
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(image, 0, 0, width, height);
+      const rgba = ctx.getImageData(0, 0, width, height).data;
+      const gray = Array.from({length: width * height}, (_, i) => {
+        const p = i * 4;
+        return Math.round((299 * rgba[p] + 587 * rgba[p + 1] + 114 * rgba[p + 2]) / 1000);
+      });
+      photo = {width, height, pixels: gray};
+      paintFrame($('edge-input'), width, height, gray);
+      $('edge-input-empty').hidden = true;
+      $('edge-input').hidden = false;
+      $('edge-size').textContent = `${width} × ${height}`;
+      $('edge-caption').textContent = caption;
+      setStatus('edge-status', 'Photo ready. Select Run edge detection.');
+    } catch {
+      if (revision === photoRevision) setStatus('edge-status', 'Could not read that photo. Try a PNG or JPEG.', true);
+    } finally {
+      updateButtons();
+    }
+  }
+
+  function showEdges() {
+    const threshold = Number($('edge-threshold').value);
+    $('edge-threshold-value').value = threshold;
+    if (!edges) return;
+    const visible = edges.pixels.map((value) => value > 0 && value >= threshold);
+    const overlay = $('edge-overlay').checked;
+    const display = overlay ? photo.pixels : edges.pixels.map((value, i) => visible[i] ? value : 0);
+    paintFrame($('edge-output'), edges.width, edges.height, display, overlay ? visible : null);
+    $('edge-output-empty').hidden = true;
+    $('edge-output').hidden = false;
   }
 
   function readRectangles() {
@@ -246,7 +390,7 @@
   async function simulate(payload, statusId, onResult) {
     if (busy) return;
     busy = true;
-    $('render').disabled = $('mac-run').disabled = true;
+    updateButtons();
     setStatus(statusId, 'Running the Verilog simulation…');
     try {
       const response = await fetch('/simulate', {
@@ -259,19 +403,13 @@
       setStatus(statusId, error instanceof TypeError ? 'Could not reach the playground terminal.' : error.message, true);
     } finally {
       busy = false;
-      $('render').disabled = $('mac-run').disabled = false;
+      updateButtons();
     }
   }
 
   function paint({pixels: rendered, cycles, draw_cycles: draws}) {
     pixels = rendered;
-    const frame = ctx.createImageData(size, size);
-    for (let i = 0; i < pixels.length; i++) {
-      const offset = i * 4;
-      frame.data[offset] = frame.data[offset + 1] = frame.data[offset + 2] = pixels[i];
-      frame.data[offset + 3] = 255;
-    }
-    ctx.putImageData(frame, 0, 0);
+    paintFrame(canvas, size, size, pixels);
     $('download').disabled = false;
     const drawCycles = draws.reduce((total, item) => total + item, 0);
     setStatus('draw-status', `${number.format(drawCycles)} draw and readback cycles · ${number.format(cycles)} with program loads`);
@@ -287,10 +425,41 @@
 
   document.querySelectorAll('[data-view]').forEach((button) => {
     button.addEventListener('click', () => {
-      for (const id of ['graphics', 'compute']) $(id).hidden = button.dataset.view !== id;
-      document.querySelectorAll('[data-view]').forEach((item) => item.setAttribute('aria-pressed', item === button));
+      document.querySelectorAll('[data-view]').forEach((item) => {
+        $(item.dataset.view).hidden = item !== button;
+        item.setAttribute('aria-pressed', item === button);
+      });
     });
   });
+  function loadExample() {
+    const example = $('edge-example').value;
+    if (Object.hasOwn(edgeExamples, example)) loadPhoto(`/samples/${example}.png`, edgeExamples[example]);
+  }
+  $('edge-example').addEventListener('change', loadExample);
+  $('edge-upload').addEventListener('click', () => $('edge-file').click());
+  $('edge-file').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.size > 12 * 1024 * 1024) {
+      setStatus('edge-status', 'Choose a photo up to 12 MB.', true);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    $('edge-example').value = 'custom';
+    try { await loadPhoto(url, file.name); } finally { URL.revokeObjectURL(url); }
+  });
+  $('edge-run').addEventListener('click', () => {
+    if (!photo) return;
+    simulate({mode: 'edges', ...photo}, 'edge-status', (result) => {
+      edges = result;
+      showEdges();
+      const count = (result.width - 2) * (result.height - 2);
+      setStatus('edge-status', `Checked ${number.format(count)} pixel neighborhoods in the Verilog simulator.`);
+    });
+  });
+  $('edge-threshold').addEventListener('input', showEdges);
+  $('edge-overlay').addEventListener('change', showEdges);
   $('preset').addEventListener('change', () => {
     const layers = presets[$('preset').value];
     if (layers) {
@@ -324,14 +493,16 @@
     const y = Math.max(0, Math.min(63, Math.floor((event.clientY - rect.top) * size / rect.height)));
     $('pixel').value = `(${x}, ${y}) · brightness ${pixels[y * size + x]}`;
   });
-  $('download').addEventListener('click', () => {
+  function downloadPng(target, name) {
     const link = document.createElement('a');
-    link.href = canvas.toDataURL('image/png');
-    link.download = 'nanogpu-playground.png';
+    link.href = target.toDataURL('image/png');
+    link.download = name;
     link.click();
-  });
+  }
+  $('download').addEventListener('click', () => downloadPng(canvas, 'nanogpu-playground.png'));
+  $('edge-download').addEventListener('click', () => downloadPng($('edge-output'), 'nanogpu-edges.png'));
   showRectangles(presets.product);
-  render();
+  loadExample();
 </script>
 </body>
 </html>

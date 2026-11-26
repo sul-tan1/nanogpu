@@ -12,6 +12,15 @@ physical checks, and fabrication status.
 
 ## See it in action
 
+**Find the outline of everyday objects.** The brightness changes around the
+coin rims stand out after NanoGPU runs an edge filter. A sorting machine could
+use those boundaries to help locate coins. Try the same filter on your own
+photo in the [playground](#open-the-playground).
+
+| Coin photo | Outlines from the RTL simulation |
+| --- | --- |
+| <img src="docs/assets/edge-coins.png" width="240" alt="Coins on a gray surface"> | <img src="docs/assets/edge-coins-outline.png" width="240" alt="Bright outlines tracing the coins on a black background"> |
+
 | Multiply shader | Sobel input | Sobel edges |
 | --- | --- | --- |
 | <img src="docs/assets/multiply-gradient.png" width="192" height="192" alt="Multiplication gradient shaded by NanoGPU"> | <img src="docs/assets/sobel-input.png" width="192" height="192" alt="Grayscale scene built from two NanoGPU renders"> | <img src="docs/assets/sobel-edges.png" width="192" height="192" alt="Sobel edges from NanoGPU dot products"> |
@@ -60,15 +69,20 @@ After setup, start the local playground from the repository root:
 .\tt.cmd playground
 ```
 
-Choose **Diagonal ramp**, **XOR tiles**, or another preset. Edit the rectangle's
-position, size, or instruction slots, then click **Render in RTL**. Add more
-rectangles to layer them in draw order. Hover over the image to read a pixel
-or download the 64 × 64 PNG. **MAC compute** accepts editable signed operand
-groups and displays the two dot products.
+The playground opens on **Find edges**. Choose the coins or coffee cup, or pick
+a photo from your computer. Click **Run edge detection** to compare the photo
+with its outlines. Raise **Minimum edge strength** to hide weaker lines, or turn
+on **Highlight edges on the photo** to see where they came from. Photo processing
+runs locally.
+
+In **Draw patterns**, pick a preset and edit rectangle position, size, or
+instructions. Use **Render in RTL** to see the result. **Multiply & add** accepts
+editable rows of numbers and displays the two dot products.
 
 Each run sends commands through the same Verilog pins as the automated tests.
-The host applies the background and layers the returned rectangles. Keep the
-terminal open while using the playground, then press **Ctrl+C** to stop it.
+The browser prepares photos, highlights the returned edges, and layers rendered
+rectangles. Keep the terminal open while using the playground, then press
+**Ctrl+C** to stop it.
 See the [Linux launcher](docs/windows-and-github.md#ubuntu-and-wsl) and the
 [instruction set and host protocol](docs/info.md).
 
@@ -93,3 +107,7 @@ artifacts from each job.
 The interface, configuration, and workflows derive from the
 [Tiny Tapeout Verilog template](https://github.com/TinyTapeout/ttsky-verilog-template).
 See [LICENSE](LICENSE) for the Apache-2.0 license.
+
+The playground's coin photo is from the Brooklyn Museum Collection, distributed
+by scikit-image with no known copyright restrictions. The coffee photo is by
+Rachel Michetti and is released under CC0. [Coin photo credit](https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.coins) · [Coffee photo credit](https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.coffee)

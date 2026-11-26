@@ -155,6 +155,24 @@ def save_report(name, data):
     (OUTPUT / name).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
+async def sobel_edges(host, image, width, height):
+    # One lane measures horizontal changes and the other measures vertical changes.
+    kernel_x = (-1, 0, 1, -2, 0, 2, -1, 0, 1)
+    kernel_y = (-1, -2, -1, 0, 0, 0, 1, 2, 1)
+    edges = [0] * (width * height)
+    for y in range(1, height - 1):
+        for x in range(1, width - 1):
+            window = [image[(y + dy) * width + x + dx] - 128
+                      for dy in (-1, 0, 1) for dx in (-1, 0, 1)]
+            await host.clear_acc()
+            gx, gy = await host.mac_burst([(p, wx, p, wy)
+                                           for p, wx, wy in zip(window, kernel_x, kernel_y)])
+            assert gx == sum(p * weight for p, weight in zip(window, kernel_x))
+            assert gy == sum(p * weight for p, weight in zip(window, kernel_y))
+            edges[y * width + x] = min(255, (abs(gx) + abs(gy)) // 4)
+    return edges
+
+
 @cocotb.test()
 async def shared_program_demo(dut):
     host = Host(dut)
@@ -373,19 +391,6 @@ async def multiply_shader_and_sobel_demo(dut):
     image = [gradient[y * 128 + x * 2] for y in range(size) for x in range(size)]
     save_demo(image, size, size, "sobel-input.png")
 
-    # One lane computes the horizontal Sobel kernel and the other the vertical.
-    kernel_x = (-1, 0, 1, -2, 0, 2, -1, 0, 1)
-    kernel_y = (-1, -2, -1, 0, 0, 0, 1, 2, 1)
-    edges = [0] * (size * size)
-    for y in range(1, size - 1):
-        for x in range(1, size - 1):
-            window = [image[(y + dy) * size + x + dx] - 128
-                      for dy in (-1, 0, 1) for dx in (-1, 0, 1)]
-            await host.clear_acc()
-            gx, gy = await host.mac_burst([(p, wx, p, wy)
-                                           for p, wx, wy in zip(window, kernel_x, kernel_y)])
-            assert gx == sum(p * weight for p, weight in zip(window, kernel_x))
-            assert gy == sum(p * weight for p, weight in zip(window, kernel_y))
-            edges[y * size + x] = min(255, (abs(gx) + abs(gy)) // 4)
+    edges = await sobel_edges(host, image, size, size)
     assert max(edges) > 100
     save_demo(edges, size, size, "sobel-edges.png")
