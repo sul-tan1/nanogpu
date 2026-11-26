@@ -1,53 +1,55 @@
 # Tools and GitHub workflow
 
-## On this computer
+## Windows x64
 
-Open `digital-final.code-workspace` from the parent folder. The project lives in
-`ttsky-digital-final` and has its own Git history. The ALU project is retained as a
-reference and a source of the already installed tools. The barrel-shifter files
-are archived under the parent `.archive/` folder and are outside this workspace.
-
-From the NanoGPU project folder, run:
-
-```powershell
-.\tt.cmd doctor
-.\tt.cmd lint
-.\tt.cmd test
-Start-Process .\test\output\nanogpu.png
-```
-
-Look for `TESTS=4 PASS=4 FAIL=0`. The PNG shows the gradient and shaded inset
-assembled from simulated pixel output. Run `.\tt.cmd synth` for a Yosys
-structural check or `.\tt.cmd wave` to see the clock, bus, and handshakes.
-
-If the tools are missing, run `.\tt.cmd setup`. Setup automatically reuses
-`../tqt_tt_workshop_ex/.tools/oss-cad-suite` and its
-Python packages when available. A small project-local CPython runtime keeps this
-project's test modules separate. Keep the ALU folder in place while sharing its
-tools. To use a shared tools directory elsewhere, set `TT_SHARED_TOOLS` to it
-and rerun setup. `OSS_CAD_SUITE` can override just the extracted suite directory.
-
-If the shared installation is unavailable, setup can extract your archive into
-the project's ignored `.tools/` directory and download the portable Python and
-test dependencies:
+Follow the [fresh-clone steps](../README.md#run-the-simulation) in the README.
+From the repository root, use `-Archive` if the OSS CAD Suite archive is
+outside the Downloads folder:
 
 ```powershell
 .\tt.cmd setup -Archive 'C:\path\to\oss-cad-suite-windows-x64-20261120.tgz'
 ```
 
-The launcher activates the suite for its process, handles the Windows Icarus
-backend/VPI paths, and uses a process-scoped PowerShell script-policy option.
-It does not modify your global PATH or persistent execution policy.
+To use an extracted suite, point `OSS_CAD_SUITE` to the folder containing
+`environment.ps1` and run setup from the same PowerShell session:
 
-Local commands are also available from **Terminal > Run Task** in VS Code.
-The Surfer extension recommended by the template can open `test/tb.fst` directly.
-`tt.cmd wave` uses GTKWave with the saved signal selection.
+```powershell
+$env:OSS_CAD_SUITE = 'C:\path\to\oss-cad-suite'
+.\tt.cmd setup
+```
+
+The launcher sets the CAD tool paths for each run and installs a portable
+CPython and test packages under `.tools/`. Run `.\tt.cmd doctor` to check the
+setup, `.\tt.cmd lint` to run Verilator, or `.\tt.cmd synth` for a Yosys structural
+check. Run `.\tt.cmd wave` after a test to inspect the clock, bus, and handshakes
+in GTKWave, or open `test/tb.fst` with Surfer in VS Code.
+
+## Ubuntu and WSL
+
+Install the simulation tools and run the testbench from a clone:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y git make iverilog verilator python3 python3-venv
+git clone https://github.com/sul-tan1/nanogpu.git
+cd nanogpu
+python3 -m venv .tools/venv
+source .tools/venv/bin/activate
+python -m pip install -r scripts/requirements.txt
+python scripts/run.py lint
+cd test
+make
+python -m cocotb_tools.check_results results.xml
+```
+
+The demo is `test/output/nanogpu.png` and the waveform is `test/tb.fst`, relative
+to the repository root.
 
 ## GitHub repository
 
-NanoGPU's `origin` is [sul-tan1/nanogpu](https://github.com/sul-tan1/nanogpu).
-The local `main` tracks `origin/main`. After making and committing a change in
-this project, run:
+The upstream repository is [sul-tan1/nanogpu](https://github.com/sul-tan1/nanogpu).
+With write access, commit your changes and push to start the workflows. You can
+also experiment in your own fork.
 
 ```powershell
 git push
@@ -67,7 +69,7 @@ git push
 
 The `test`, `docs`, and `gds` workflows start on pushes. The physical checks,
 gate-level test, and viewer wait for the `gds` job. To test the current `main`
-again without making a commit, open [Actions](https://github.com/sul-tan1/nanogpu/actions),
+again, users with write access can open [Actions](https://github.com/sul-tan1/nanogpu/actions),
 pick the workflow, and select **Run workflow**. The `test-results` artifact from
 the `test` run includes the render, JUnit results, and waveform.
 

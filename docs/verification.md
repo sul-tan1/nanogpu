@@ -22,6 +22,24 @@ The transition repair experiment reduced the worst-corner count from 223 to 55
 with the same 0.75 ns transition limit and 100 ns clock period. Those remaining
 warnings need review during tapeout signoff.
 
+## What the simulations check
+
+The cocotb host sends command bytes through the Tiny Tapeout pins at 10 MHz. It
+checks that bytes transfer when both ready and valid are high, and compares
+the responses with a separate Python model. The same four tests run on the
+Verilog RTL and on the Sky130 gate-level netlist produced by the GDS flow.
+
+| Test | What it checks |
+| --- | --- |
+| Shared program demo | Compares all 4,096 gradient pixels with the model, checks the cycle count, uses the same program to return the averages `7` and `14`, and verifies a second program shades an inset rectangle. |
+| Compute reference and wrapping | Checks the reset default, all six instructions, and 190 two-lane jobs with boundary values and reproducibly randomized programs and operands. Examples include unsigned `255 + 1 = 0` and `0 − 1 = 255`. |
+| Rectangle boundaries and errors | Checks even and odd widths, single pixels, final rows and columns, output order, and status bytes for invalid commands, dimensions, and instructions. A rejected program restores the identity program. |
+| Stalls, enable, and reset | Pauses input partway through a request, waits before reading valid output, disables and resumes the chip, and resets during a draw. Checks that a waiting byte stays stable, the resumed draw returns every pixel, and reset clears the pending draw and restores the default program. |
+
+Physical precheck covers the GDS geometry, layers, and pin rules. See the
+[hosted physical run](https://github.com/sul-tan1/nanogpu/actions/runs/45729734282)
+for the GDS, precheck, and gate-level artifacts.
+
 ## Demonstration and area comparison
 
 The full 64×64 gradient takes 10,246 clock cycles from command transfer through
