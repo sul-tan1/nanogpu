@@ -1,9 +1,33 @@
 # Hardware verification
 
 The current design targets two digital Sky130A Tiny Tapeout tiles (`1x2`) at a
-100 ns clock period (10 MHz). The [resized baseline run](https://github.com/sul-tan1/nanogpu/actions/runs/45736173614)
-uses the original datapath on the larger floorplan. Track the signed MAC build
-and physical checks in [GitHub Actions](https://github.com/sul-tan1/nanogpu/actions).
+100 ns clock period (10 MHz). Both builds below use the 161.00 × 225.76 µm
+floorplan and LibreLane 3.0.14 with the same Sky130A PDK revision.
+
+## Routed 1×2 results
+
+| Measurement | Resized original datapath | Two signed MAC lanes |
+| --- | ---: | ---: |
+| Standard-cell area | 9,211.33 µm² | 26,855.80 µm² |
+| Placement area utilization | 26.89% | 78.40% |
+| Worst setup slack | +57.304 ns | +54.190 ns |
+| Worst hold slack | +0.112 ns | +0.116 ns |
+| Detailed-route DRC and LVS errors | 0 | 0 |
+| Worst-corner transition violations | 50 | 142 |
+| Hosted RTL and gate-level tests | 4 each passed | 7 each passed |
+| Hosted Tiny Tapeout prechecks | 17 passed | 17 passed |
+
+See the [resized baseline run](https://github.com/sul-tan1/nanogpu/actions/runs/45736173614)
+and the [signed MAC run](https://github.com/sul-tan1/nanogpu/actions/runs/45736785320)
+for exact revisions, reports, and layout artifacts. The signed MAC layout meets
+the 10 MHz setup and hold checks. The transition violations are at the slow,
+hot, low-voltage corner against the 0.75 ns limit and remain open for signoff.
+The local slow-corner optimization trial reported 149 violations. The hosted
+build retained the original optimization settings. Its gate netlist reproduced
+the RTL simulation's PNGs and numerical reports byte for byte in a local run.
+
+The current GDS, gate netlist, and timing metrics are available in the GDS run's
+`tt_submission` artifact. The workspace copy is under `tt_submission/`.
 
 ## Original 1×1 implementation
 
@@ -44,6 +68,10 @@ Verilog RTL and on the Sky130 gate-level netlist produced by the GDS flow.
 | Burst protocol and throughput | Compares 32 MAC steps sent individually and in a burst, exercises zero and 255 count boundaries, and checks stalled reads, pause, and reset. |
 | Multiply shader and Sobel demo | Checks all 4,096 multiply-shaded pixels and signed scaling. Compares both Sobel filter results at every interior pixel with independent Python dot products. |
 
+Two additional local RTL checks compared all 65,536 signed input pairs with an
+integer multiply reference and exercised positive and negative 32-bit wraparound
+through burst packets of 133,110 terms per lane in total.
+
 Physical precheck covers the GDS geometry, layers, and pin rules. See the
 [original hosted physical run](https://github.com/sul-tan1/nanogpu/actions/runs/45729734282)
 for the GDS, precheck, and gate-level artifacts.
@@ -73,8 +101,8 @@ precheck used its workflow PDK revision `0536d02d875c8f67dd7cca3902ac457e62f2000
 
 | Local path from project root | Artifact |
 | --- | --- |
-| `tt_submission/` | GDS, LEF, gate netlist, extracted parasitics, and build metadata |
-| `tt_submission/stats/metrics.csv` | Post-route area, timing, routing, and LVS metrics |
+| `build/physical-slew/tt_submission/` | GDS, LEF, gate netlist, extracted parasitics, and build metadata |
+| `build/physical-slew/tt_submission/stats/metrics.csv` | Post-route area, timing, routing, and LVS metrics |
 | `build/physical-slew/layout.png` | Layout preview |
 | `build/physical-slew/precheck-results.md` | Results for the 16 prechecks |
 | `build/physical-slew/gate-results.xml` | Gate-level simulation results |
