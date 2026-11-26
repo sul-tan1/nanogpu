@@ -1,9 +1,10 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('setup', 'doctor', 'lint', 'test', 'gl-test', 'synth', 'wave', 'viewer', 'help')]
+    [ValidateSet('setup', 'doctor', 'lint', 'test', 'gl-test', 'synth', 'wave', 'viewer', 'playground', 'help')]
     [string]$Command = 'help',
     [string]$Archive = (Join-Path $env:USERPROFILE 'Downloads\oss-cad-suite-windows-x64-20261120.tgz'),
-    [string]$Waveform = 'test\tb.fst'
+    [string]$Waveform = 'test\tb.fst',
+    [switch]$NoBrowser
 )
 
 $ErrorActionPreference = 'Stop'
@@ -53,6 +54,7 @@ Run from the project folder:
   .\tt.cmd wave -Waveform PATH   Open a downloaded RTL or gate-level waveform
   .\tt.cmd gl-test               Test an existing Sky130 netlist (requires PDK_ROOT)
   .\tt.cmd viewer                Open this repository's published 3D layout
+  .\tt.cmd playground            Open the interactive RTL playground
 See docs/windows-and-github.md for GitHub Actions, Pages, and local hardening.
 '@
         exit 0
@@ -139,7 +141,9 @@ See docs/windows-and-github.md for GitHub Actions, Pages, and local hardening.
         exit 0
     }
     if (-not (Test-Path -LiteralPath $pythonExe)) { throw 'Run .\tt.cmd setup to install the local test runtime.' }
-    & $pythonExe (Join-Path $PSScriptRoot 'run.py') $Command
+    $runnerArgs = @($Command)
+    if ($Command -eq 'playground' -and $NoBrowser) { $runnerArgs += '--no-browser' }
+    & $pythonExe (Join-Path $PSScriptRoot 'run.py') @runnerArgs
     Assert-Exit $Command
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Red

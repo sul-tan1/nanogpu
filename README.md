@@ -52,13 +52,25 @@ Expect `TESTS=7 PASS=7 FAIL=0`. The test writes PNGs and the dense-layer and
 burst benchmark results to `test/output/`. For **Ubuntu or WSL**, an existing
 Windows toolchain, or opening waveforms, see the [tooling guide](docs/windows-and-github.md).
 
-## Try a different program
+## Open the playground
 
-Change `pattern` in `shared_program_demo` and reopen `test/output/nanogpu.png`
-after rerunning the tests. Try `[XOR]` for a repeating bit pattern or
-`[MAX, ADD, ADD, ADD]` for a bright gradient. The same host interface supports
-image filters and dot products with different signed weights. See the
-[instruction set and host protocol](docs/info.md) and [test source](test/test.py).
+After setup, start the local playground from the repository root:
+
+```powershell
+.\tt.cmd playground
+```
+
+Choose **Diagonal ramp**, **XOR tiles**, or another preset. Edit the rectangle's
+position, size, or instruction slots, then click **Render in RTL**. Add more
+rectangles to layer them in draw order. Hover over the image to read a pixel
+or download the 64 × 64 PNG. **MAC compute** accepts editable signed operand
+groups and displays the two dot products.
+
+Each run sends commands through the same Verilog pins as the automated tests.
+The host applies the background and layers the returned rectangles. Keep the
+terminal open while using the playground, then press **Ctrl+C** to stop it.
+See the [Linux launcher](docs/windows-and-github.md#ubuntu-and-wsl) and the
+[instruction set and host protocol](docs/info.md).
 
 ## Project files
 

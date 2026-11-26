@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>NanoGPU Playground</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --ink: #14151b; --panel: #1c1f28; --field: #14171f; --line: #363a48;
+    --text: #f5f0e9; --muted: #b2b4c3; --accent: #ffc68a; --error: #ffaba6;
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--ink); color: var(--text);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; }
+  main { max-width: 1180px; margin: auto; padding: 40px 28px; }
+  h1, h2 { margin: 0; line-height: 1.12; letter-spacing: -.033em; }
+  h1 { font-size: clamp(2.3rem, 5vw, 3.8rem); }
+  h1 span { color: var(--accent); }
+  h2 { font-size: 1.25rem; }
+  p { margin: 8px 0 0; color: var(--muted); }
+  code, output, textarea, .number { font-family: Consolas, "SFMono-Regular", monospace; }
+  .mode { display: flex; gap: 6px; margin: 24px 0 18px; }
+  .workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .panel { background: var(--panel); border: 1px solid var(--line); padding: 20px; border-radius: 14px; min-width: 0; }
+  .top-row, .actions, .preview-head, .preview-foot, .rectangle-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .top-row { align-items: end; margin: 14px 0 16px; }
+  label { display: block; min-width: 0; color: var(--muted); font-size: .86rem; }
+  select, input, button, textarea { font: inherit; }
+  select, input:not([type="range"]), textarea {
+    color: var(--text); background: var(--field); border: 1px solid var(--line);
+    border-radius: 7px; padding: 7px 8px; width: 100%;
+  }
+  input[type="range"] { width: 100%; margin: 9px 0 7px; accent-color: var(--accent); }
+  label > input, label > select, label > textarea { display: block; margin-top: 4px; }
+  button {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--field);
+    color: var(--text); padding: 7px 12px; cursor: pointer; white-space: nowrap;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .52; cursor: default; }
+  button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+  button.primary { color: #1c140d; background: var(--accent); border-color: var(--accent); font-weight: 750; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  fieldset { margin: 0 0 12px; padding: 10px 12px 13px; min-width: 0; border: 1px solid var(--line); border-radius: 9px; }
+  legend { padding: 0 6px; color: var(--text); font-weight: 650; }
+  .rectangle-head { justify-content: flex-end; margin-top: 8px; }
+  .rectangle-head button { padding: 3px 7px; font-size: .75rem; }
+  .four { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+  .program { margin-top: 9px; }
+  .program select { font-family: Consolas, monospace; font-size: .78rem; }
+  .preset { flex: 1.1; }
+  .background { flex: 1; }
+  .actions { flex-wrap: wrap; }
+  .preview-head { margin-bottom: 15px; }
+  .preview-head span, .preview-foot, .hint, details { color: var(--muted); font-size: .84rem; }
+  .screen { background: #08090c; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  canvas { display: block; width: 100%; aspect-ratio: 1; image-rendering: pixelated; }
+  .preview-foot { margin-top: 10px; flex-wrap: wrap; }
+  .status { min-height: 1.5em; }
+  .error { color: var(--error); }
+  details { margin-top: 14px; }
+  summary { cursor: pointer; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 5px 12px; }
+  dd { margin: 0; }
+  textarea { min-height: 11em; resize: vertical; margin-bottom: 14px; }
+  .sums { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+  .sum { background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .sum output { display: block; color: var(--accent); font-size: clamp(1.3rem, 3vw, 2.3rem); overflow-wrap: anywhere; }
+  .sum span { color: var(--muted); }
+  @media (max-width: 810px) { .workspace { grid-template-columns: 1fr; } main { padding: 28px 15px; } }
+  @media (max-width: 390px) { .panel { padding: 13px; } .program { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+<main>
+  <h1>NanoGPU <span>Playground</span></h1>
+  <p>Send your own shader or dot product through the Verilog simulator.</p>
+  <nav class="mode" aria-label="Simulation mode">
+    <button type="button" data-view="graphics" aria-controls="graphics" aria-pressed="true">Graphics</button>
+    <button type="button" data-view="compute" aria-controls="compute" aria-pressed="false">MAC compute</button>
+  </nav>
+
+  <section class="workspace" id="graphics" aria-label="Graphics workspace">
+    <form class="panel" id="draw-form">
+      <h2>Scene</h2>
+      <div class="top-row">
+        <label class="preset">Preset
+          <select id="preset">
+            <option value="product">Product fade</option>
+            <option value="diagonal">Diagonal ramp</option>
+            <option value="weave">XOR tiles</option>
+            <option value="corner">Corner gradient</option>
+            <option value="layered">Layered scene</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <label class="background">Host background <output id="background-value">0</output>
+          <input id="background" type="range" min="0" max="255" value="0" title="Brightness outside the rectangles">
+        </label>
+      </div>
+      <div id="rectangles"></div>
+      <div class="actions">
+        <button id="add-rectangle" type="button">Add rectangle</button>
+        <button id="render" type="submit" class="primary">Render in RTL</button>
+      </div>
+      <details>
+        <summary>Instruction guide</summary>
+        <p>Each pixel starts with <code>r = x</code> and <code>b = y</code>. The program updates <code>r</code>, and the final byte sets the brightness. Coordinates are absolute on the canvas.</p>
+        <dl>
+          <dt><code>NOP</code></dt><dd>Keep r</dd>
+          <dt><code>ADD / SUB</code></dt><dd>Add or subtract b, wrapping at 8 bits</dd>
+          <dt><code>XOR</code></dt><dd>Exclusive OR with b</dd>
+          <dt><code>MAX</code></dt><dd>Keep the larger unsigned byte</dd>
+          <dt><code>SHR1</code></dt><dd>Shift r right by one bit</dd>
+          <dt><code>MUL_SHIFT4</code></dt><dd>Multiply signed r and b, shift right four bits, and keep the low byte</dd>
+        </dl>
+      </details>
+    </form>
+    <section class="panel" aria-labelledby="preview-title">
+      <div class="preview-head">
+        <h2 id="preview-title">Simulated pixels</h2><span class="number">64 × 64</span>
+      </div>
+      <div class="screen"><canvas id="canvas" width="64" height="64" aria-label="NanoGPU grayscale render"></canvas></div>
+      <div class="preview-foot">
+        <output id="pixel">Move over the image to read a pixel.</output>
+        <button id="download" type="button" disabled>Download PNG</button>
+      </div>
+      <p class="status" id="draw-status" role="status"></p>
+    </section>
+  </section>
+
+  <section class="workspace" id="compute" aria-label="Compute workspace" hidden>
+    <form class="panel" id="mac-form">
+      <h2>Signed MAC burst</h2>
+      <p>Enter one group per line as <code>a0, b0, a1, b1</code>. Values range from −128 to 127.</p>
+      <label for="operands">Operand groups</label>
+      <textarea id="operands" required spellcheck="false" rows="6">3, 5, 3, -5
+2, 7, 2, 7
+4, 2, 4, -2</textarea>
+      <button id="mac-run" type="submit" class="primary">Run MAC in RTL</button>
+    </form>
+    <section class="panel" aria-labelledby="sums-title">
+      <h2 id="sums-title">32-bit sums</h2>
+      <div class="sums">
+        <div class="sum"><span>Lane 0</span><output id="sum0">—</output></div>
+        <div class="sum"><span>Lane 1</span><output id="sum1">—</output></div>
+      </div>
+      <p>Each lane sums the products of its two columns. Each run starts with both sums cleared.</p>
+      <p class="status" id="mac-status" role="status"></p>
+    </section>
+  </section>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const rtlOps = ['NOP', 'ADD', 'SUB', 'XOR', 'MAX', 'SHR1', 'MUL_SHIFT4'];
+  const rectangle = (program, x = 0, y = 0, width = 64, height = 64) => ({program, x, y, width, height});
+  const presets = {
+    product: [rectangle([6])], diagonal: [rectangle([1, 5])],
+    weave: [rectangle([3, 1, 1, 1])], corner: [rectangle([4, 1, 1, 1])],
+    layered: [rectangle([6]), rectangle([3, 1, 1, 1], 9, 7, 45, 49), rectangle([4, 5], 17, 23, 26, 17)],
+  };
+  const size = 64;
+  const maxLayers = 6;
+  const number = new Intl.NumberFormat('en');
+  const canvas = $('canvas');
+  const ctx = canvas.getContext('2d');
+  let pixels;
+  let busy = false;
+  let sceneRevision = 0;
+
+  function setStatus(id, text, error = false) {
+    const node = $(id);
+    node.textContent = text;
+    node.classList.toggle('error', error);
+  }
+
+  function readRectangles() {
+    return [...$('rectangles').children].map((element) => {
+      const layer = {};
+      element.querySelectorAll('input').forEach((input) => { layer[input.name] = input.valueAsNumber; });
+      layer.program = [...element.querySelectorAll('select')].map((el) => el.value)
+        .filter((value) => value !== '').map(Number);
+      return layer;
+    });
+  }
+
+  function showRectangles(layers) {
+    $('rectangles').replaceChildren(...layers.map((layer, index) => {
+      const element = document.createElement('fieldset');
+      const legend = document.createElement('legend');
+      legend.textContent = `Rectangle ${index + 1}`;
+      const geometry = document.createElement('div');
+      geometry.className = 'four';
+      for (const [key, title, min, max] of [['x','X',0,63], ['y','Y',0,63], ['width','Width',1,64], ['height','Height',1,64]]) {
+        const label = document.createElement('label');
+        label.textContent = title;
+        const input = document.createElement('input');
+        Object.assign(input, {type: 'number', name: key, min, max, step: 1, required: true, value: layer[key]});
+        label.append(input);
+        geometry.append(label);
+      }
+      const program = document.createElement('div');
+      program.className = 'four program';
+      for (let step = 0; step < 4; step++) {
+        const label = document.createElement('label');
+        label.textContent = `Step ${step + 1}`;
+        const select = document.createElement('select');
+        if (step > 0) select.add(new Option('—', ''));
+        rtlOps.forEach((text, opcode) => select.add(new Option(text, opcode)));
+        select.value = layer.program[step] ?? '';
+        label.append(select);
+        program.append(label);
+      }
+      element.append(legend, geometry, program);
+      if (layers.length > 1) {
+        const head = document.createElement('div');
+        head.className = 'rectangle-head';
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.textContent = 'Remove';
+        remove.setAttribute('aria-label', `Remove rectangle ${index + 1}`);
+        remove.addEventListener('click', () => {
+          showRectangles(readRectangles().filter((_, i) => i !== index));
+          markEdited();
+        });
+        head.append(remove);
+        element.append(head);
+      }
+      return element;
+    }));
+    $('add-rectangle').disabled = layers.length >= maxLayers;
+  }
+
+  function markEdited() {
+    sceneRevision++;
+    $('preset').value = 'custom';
+    setStatus('draw-status', 'Render to apply the current scene.');
+  }
+
+  async function simulate(payload, statusId, onResult) {
+    if (busy) return;
+    busy = true;
+    $('render').disabled = $('mac-run').disabled = true;
+    setStatus(statusId, 'Running the Verilog simulation…');
+    try {
+      const response = await fetch('/simulate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      onResult(result);
+    } catch (error) {
+      setStatus(statusId, error instanceof TypeError ? 'Could not reach the playground terminal.' : error.message, true);
+    } finally {
+      busy = false;
+      $('render').disabled = $('mac-run').disabled = false;
+    }
+  }
+
+  function paint({pixels: rendered, cycles, draw_cycles: draws}) {
+    pixels = rendered;
+    const frame = ctx.createImageData(size, size);
+    for (let i = 0; i < pixels.length; i++) {
+      const offset = i * 4;
+      frame.data[offset] = frame.data[offset + 1] = frame.data[offset + 2] = pixels[i];
+      frame.data[offset + 3] = 255;
+    }
+    ctx.putImageData(frame, 0, 0);
+    $('download').disabled = false;
+    const drawCycles = draws.reduce((total, item) => total + item, 0);
+    setStatus('draw-status', `${number.format(drawCycles)} draw and readback cycles · ${number.format(cycles)} with program loads`);
+  }
+
+  function render() {
+    const revision = sceneRevision;
+    simulate({mode: 'draw', background: Number($('background').value), layers: readRectangles()}, 'draw-status', (result) => {
+      paint(result);
+      if (revision !== sceneRevision) setStatus('draw-status', 'Render again to apply the latest edits.');
+    });
+  }
+
+  document.querySelectorAll('[data-view]').forEach((button) => {
+    button.addEventListener('click', () => {
+      for (const id of ['graphics', 'compute']) $(id).hidden = button.dataset.view !== id;
+      document.querySelectorAll('[data-view]').forEach((item) => item.setAttribute('aria-pressed', item === button));
+    });
+  });
+  $('preset').addEventListener('change', () => {
+    const layers = presets[$('preset').value];
+    if (layers) {
+      sceneRevision++;
+      showRectangles(layers);
+      $('background').value = $('preset').value === 'layered' ? 14 : 0;
+      $('background-value').value = $('background').value;
+      setStatus('draw-status', 'Render to apply the selected preset.');
+    }
+  });
+  $('rectangles').addEventListener('input', markEdited);
+  $('background').addEventListener('input', () => { $('background-value').value = $('background').value; markEdited(); });
+  $('add-rectangle').addEventListener('click', () => {
+    showRectangles([...readRectangles(), rectangle([3, 1, 1, 1], 16, 16, 32, 32)]);
+    markEdited();
+  });
+  $('draw-form').addEventListener('submit', (event) => { event.preventDefault(); render(); });
+  $('mac-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const groups = $('operands').value.trim().split(/\r?\n/).map((line) => line.trim())
+      .filter(Boolean).map((line) => line.split(/[\s,]+/).map((value) => /^-?\d+$/.test(value) ? Number(value) : null));
+    simulate({mode: 'mac', groups}, 'mac-status', (result) => {
+      for (let i = 0; i < 2; i++) $(`sum${i}`).value = number.format(result.sums[i]);
+      setStatus('mac-status', `${result.groups} operand groups · ${number.format(result.cycles)} cycles including readback`);
+    });
+  });
+  canvas.addEventListener('pointermove', (event) => {
+    if (!pixels) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.max(0, Math.min(63, Math.floor((event.clientX - rect.left) * size / rect.width)));
+    const y = Math.max(0, Math.min(63, Math.floor((event.clientY - rect.top) * size / rect.height)));
+    $('pixel').value = `(${x}, ${y}) · brightness ${pixels[y * size + x]}`;
+  });
+  $('download').addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = 'nanogpu-playground.png';
+    link.click();
+  });
+  showRectangles(presets.product);
+  render();
+</script>
+</body>
+</html>

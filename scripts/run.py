@@ -59,7 +59,7 @@ def doctor():
     print('Source list matches the GitHub Actions Makefile.', flush=True)
 
 
-def simulate(gates=False):
+def simulate(gates=False, *, test_module='test', run_dir=None, extra_env=None):
     from cocotb_tools.check_results import get_results
     from cocotb_tools.runner import get_runner
 
@@ -84,22 +84,29 @@ def simulate(gates=False):
         # Avoid vvp's GetShortPathName-based default module discovery. All VPI
         # modules already have absolute paths from -B and cocotb's configuration.
         test_args = ['-M', '-']
-    sys.path.insert(0, str(TEST))
+    if sys.path[0] != str(TEST):
+        sys.path.insert(0, str(TEST))
+    build_dir = TEST / 'sim_build' / 'native' / ('gl' if gates else 'rtl')
+    test_dir = TEST if run_dir is None else run_dir
+    if run_dir is not None:
+        build_dir = run_dir / 'sim'
     runner = get_runner('icarus')
     runner.build(
         sources=sources, hdl_toplevel='tb', includes=[ROOT / 'src'],
         defines=defines, build_args=build_args,
-        build_dir=TEST / 'sim_build' / 'native' / ('gl' if gates else 'rtl'),
+        build_dir=build_dir,
         always=True,
     )
     results = runner.test(
-        hdl_toplevel='tb', test_module='test', test_dir=TEST,
-        results_xml=TEST / 'results.xml', test_args=test_args, waves=True,
+        hdl_toplevel='tb', test_module=test_module, test_dir=test_dir,
+        results_xml=test_dir / 'results.xml', test_args=test_args,
+        waves=run_dir is None, extra_env=extra_env or {},
     )
     tests, failures = get_results(results)
     if tests < 1 or failures:
         raise RuntimeError(f'Simulation failed: {failures} failures in {tests} tests. See {results}')
-    print(f'PASS: {tests} cocotb test(s); waveform: {TEST / "tb.fst"}', flush=True)
+    if run_dir is None:
+        print(f'PASS: {tests} cocotb test(s); waveform: {TEST / "tb.fst"}', flush=True)
 
 
 def synthesize():
@@ -134,7 +141,8 @@ def lint():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['doctor', 'lint', 'test', 'gl-test', 'synth'])
+    parser.add_argument('command', choices=['doctor', 'lint', 'test', 'gl-test', 'synth', 'playground'])
+    parser.add_argument('--no-browser', action='store_true', help='Print the playground URL without opening it.')
     args = parser.parse_args()
     if args.command == 'doctor':
         doctor()
@@ -142,6 +150,15 @@ def main():
         lint()
     elif args.command == 'synth':
         synthesize()
+    elif args.command == 'playground':
+        # The Windows embeddable runtime uses an explicit module search path.
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from playground import serve
+
+        project()
+        tool('iverilog')
+        tool('vvp')
+        serve(simulate, open_browser=not args.no_browser)
     else:
         simulate(gates=args.command == 'gl-test')
 

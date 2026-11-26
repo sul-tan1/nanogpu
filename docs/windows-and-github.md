@@ -22,7 +22,9 @@ The launcher sets the CAD tool paths for each run and installs a portable
 CPython and test packages under `.tools/`. Run `.\tt.cmd doctor` to check the
 setup, `.\tt.cmd lint` to run Verilator, or `.\tt.cmd synth` for a Yosys structural
 check. Run `.\tt.cmd wave` after a test to inspect the clock, bus, and handshakes
-in GTKWave, or open `test/tb.fst` with Surfer in VS Code.
+in GTKWave, or open `test/tb.fst` with Surfer in VS Code. Run `.\tt.cmd playground`
+for the interactive graphics and MAC simulator. Open the terminal's printed URL
+if a browser tab does not open.
 
 ## Ubuntu and WSL
 
@@ -44,6 +46,10 @@ python -m cocotb_tools.check_results results.xml
 
 The demos are in `test/output/` and the waveform is `test/tb.fst`, relative
 to the repository root.
+
+With that Python environment active, run `python scripts/run.py playground`
+from the repository root to open the playground. Each request uses a temporary
+simulation directory, so you can run the test suite while the playground is open.
 
 ## GitHub repository
 
