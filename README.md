@@ -1,6 +1,6 @@
 # NanoGPU
 
-NanoGPU is a programmable 2D renderer and vector processor by Emron Arsala.
+NanoGPU is a programmable 2D renderer and vector processor.
 Two 8-bit arithmetic lanes share a four-instruction program. A rectangle command
 generates its own pixel coordinates on chip. A compute command supplies ordinary
 operands to the same lanes. The host collects the result bytes and displays any
