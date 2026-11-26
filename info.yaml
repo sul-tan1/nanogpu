@@ -6,7 +6,7 @@ project:
   description: "Two programmable 8-bit SIMD lanes shared by a 2D rectangle renderer and vector compute"
   language: "Verilog"
   clock_hz: 10000000
-  tiles: "1x1"
+  tiles: "1x2"
   top_module: "tt_um_sul_tan1_nanogpu"
   source_files:
     - "project.v"
