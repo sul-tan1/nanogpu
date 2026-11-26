@@ -1,83 +1,37 @@
-# Final-project plan: GPU-inspired SIMD compute
+# NanoGPU architecture
 
-## Hard constraints
+NanoGPU uses the digital `1x2` Sky130A Tiny Tapeout footprint of
+161.00 × 225.76 µm and the standard byte-wide pin interface. The target clock
+is 10 MHz. The same two lanes run host-loaded byte programs and shade
+rectangles on a 64 × 64 canvas. The host controls traffic and holds the
+framebuffer. See the [official tile sizes](https://github.com/TinyTapeout/tt-support-tools/blob/main/tech/sky130A/tile_sizes.yaml).
 
-- One digital tile; larger allocations are outside the project scope.
-- Workshop dimensions: approximately 161 x 111 micrometers. The official Sky130A
-  template specifies 161.00 x 111.52 micrometers; preserve its supplied geometry.
-- Digital circuitry only, using the template's standard pin interface.
-- Fit, timing, and physical correctness must pass the actual GDS, precheck, and
-  gate-level flow. The budget includes storage, control, interface, and physical
-  implementation overhead as well as arithmetic.
+## Datapath
 
-## Current status
+- Each lane has an 8-bit working register and a fixed operand for each job.
+  A shared adder in each lane implements add, subtract, and unsigned maximum.
+- Two signed 8 × 8 multipliers each produce a full 16-bit product. A register
+  splits the product and writeback into two cycles. The same multiplier feeds
+  an 8-bit scaled pixel result or a 32-bit running sum.
+- Two independent sums retain partial dot products across commands. The host
+  can clear or read them. The burst command streams up to 255 operand groups
+  through the two multipliers and returns both sums together.
+- The vector and graphics commands reuse the same arithmetic. In a rectangle
+  draw, coordinate counters seed the lanes and the output bus serializes the
+  neighboring pixels. An odd row emits one pixel for the last pair.
 
-The first NanoGPU implementation shares two 8-bit SIMD lanes between a rectangle
-renderer and vector compute. It runs a host-loaded program of up to four
-instructions. See the [datasheet](info.md) for the implemented protocol and the
-[area study](area-study.md) for earlier arithmetic variants. The design has a
-[locally verified layout](verification.md). The [GitHub checks](https://github.com/sul-tan1/nanogpu/actions)
-run on push. Shuttle submission is a separate step.
+See the [instruction set and byte protocol](info.md) for precise operations,
+error responses, and a demo packet. The [area study](area-study.md) records
+the early arithmetic probes.
 
-## Implemented scope and experiments
+## Performance and verification
 
-The shared instruction set includes add, subtract, maximum, XOR, right shift by
-one, and identity. A synchronous byte interface transports commands and results.
-The rasterizer supplies pixel coordinates on a 64×64 canvas and the host stores
-the output image. The host can replace the program between commands.
+The burst benchmark measures cycles from the command byte through the last
+sum byte. That includes serialized host transfers. The multiplier stage
+works on two pairs in parallel while the host bus transfers one byte per cycle.
 
-Compare parallel and iterative multiplication at the same precision, workload,
-and implementation constraints. An 8-bit by 8-bit multiply has a full 16-bit
-product. Define signedness, accumulator width, and overflow behavior for MAC;
-include it only when the full design has enough implementation margin.
-
-The early basic two-lane datapath estimate is about 3,223 square micrometers of
-Sky130 HD cells. Parallel multiply raises it to about 7,321 and MAC to about 8,484.
-These estimates exclude important complete-chip costs; see the area-study limits.
-A 4-bit version is another comparison point with different numerical capability.
-
-The simulation demo shades a rectangle and reuses its program in compute mode.
-The chip generates every pixel coordinate after the draw command. Report core
-throughput and host-transfer throughput separately.
-
-## Development order
-
-1. Specify instructions, registers/writeback, arithmetic rules, pin map, clock,
-   reset, host handshakes, and invalid-command behavior.
-2. Implement one small module at a time and add tests for that behavior.
-3. Integrate the Tiny Tapeout wrapper; update both source lists and the datasheet.
-4. Run local lint, functional tests, and synthesis before pushing.
-5. Run the GitHub GDS, precheck, and gate-level tests; inspect timing and utilization.
-6. Demonstrate the design with a reproducible script and waveform/logic-analyzer capture.
-7. Add optional features only while the physical results leave room.
-
-## Evidence to retain
-
-- A stable behavioral specification and a small architecture diagram.
-- Directed tests plus reproducible randomized tests appropriate to the protocol.
-- Reset, boundary, and error-case tests, with failing cases repaired in the RTL.
-- A link to the exact commit with passing RTL, GDS, precheck, and gate-level checks.
-- Measured area/utilization, target clock and timing slack, and the layout image.
-- A short hardware or simulation demo and a clear explanation of design tradeoffs.
-
-## Resume wording after completion
-
-Use measured results and name the actual contribution. For example:
-
-> Designed and verified a [function] in Verilog; implemented [features], built
-> cocotb tests for [cases], and hardened the design into one Sky130 Tiny Tapeout
-> tile with [measured timing/area result].
-
-Fill those fields only after the corresponding implementation and checks exist.
-Use "taped out" after submission, and "silicon-tested" after testing the fabricated chip.
-
-## Constraints reference
-
-The [official tile sizes](https://github.com/TinyTapeout/tt-support-tools/blob/main/tech/sky130A/tile_sizes.yaml)
-and [1x1 floorplan](https://github.com/TinyTapeout/tt-support-tools/blob/main/tech/sky130A/def/tt_block_1x1_pg.def)
-define the geometry. The [project template](https://github.com/TinyTapeout/ttsky-verilog-template/blob/main/info.yaml)
-defines the fixed Tiny Tapeout pin groups. The
-[Tiny Tapeout FAQ](https://tinytapeout.com/faq/)
-explains why tile utilization and physical implementation must be checked. Keep
-this workshop's matching `ttsky26d` workflow references until deliberately
-migrating the project to another shuttle template.
+The [verification report](verification.md) records the original 1×1 build,
+the resized baseline, and the checks on the signed MAC implementation. Routed
+area, timing, slew, and physical rules determine the available margin. The
+measurement artifacts and demos can be reproduced from the source with the
+[local and GitHub tooling](windows-and-github.md).

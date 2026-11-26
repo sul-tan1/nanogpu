@@ -1,9 +1,14 @@
-# Local verification
+# Hardware verification
 
-NanoGPU was routed as a single digital Sky130A Tiny Tapeout tile at a 100 ns
-clock period (10 MHz). The local layout package records source revision
-`181d1579c3178f559b4621e5907c444cf1c6fb44`. Subsequent documentation edits retain
-the same RTL and physical configuration.
+The current design targets two digital Sky130A Tiny Tapeout tiles (`1x2`) at a
+100 ns clock period (10 MHz). The [resized baseline run](https://github.com/sul-tan1/nanogpu/actions/runs/45736173614)
+uses the original datapath on the larger floorplan. Track the signed MAC build
+and physical checks in [GitHub Actions](https://github.com/sul-tan1/nanogpu/actions).
+
+## Original 1×1 implementation
+
+The historical local layout below records source revision
+`181d1579c3178f559b4621e5907c444cf1c6fb44`.
 
 | Check or measurement | Result |
 | --- | --- |
@@ -26,7 +31,7 @@ warnings need review during tapeout signoff.
 
 The cocotb host sends command bytes through the Tiny Tapeout pins at 10 MHz. It
 checks that bytes transfer when both ready and valid are high, and compares
-the responses with a separate Python model. The same four tests run on the
+the responses with a separate Python model. The same seven tests run on the
 Verilog RTL and on the Sky130 gate-level netlist produced by the GDS flow.
 
 | Test | What it checks |
@@ -35,9 +40,12 @@ Verilog RTL and on the Sky130 gate-level netlist produced by the GDS flow.
 | Compute reference and wrapping | Checks the reset default, all six instructions, and 190 two-lane jobs with boundary values and reproducibly randomized programs and operands. Examples include unsigned `255 + 1 = 0` and `0 − 1 = 255`. |
 | Rectangle boundaries and errors | Checks even and odd widths, single pixels, final rows and columns, output order, and status bytes for invalid commands, dimensions, and instructions. A rejected program restores the identity program. |
 | Stalls, enable, and reset | Pauses input partway through a request, waits before reading valid output, disables and resumes the chip, and resets during a draw. Checks that a waiting byte stays stable, the resumed draw returns every pixel, and reset clears the pending draw and restores the default program. |
+| Signed dot products and accumulators | Computes the dense-layer outputs `37` and `-9`, checks multi-instruction writeback, signs, full-width products and sums, mode errors, and reset. |
+| Burst protocol and throughput | Compares 32 MAC steps sent individually and in a burst, exercises zero and 255 count boundaries, and checks stalled reads, pause, and reset. |
+| Multiply shader and Sobel demo | Checks all 4,096 multiply-shaded pixels and signed scaling. Compares both Sobel filter results at every interior pixel with independent Python dot products. |
 
 Physical precheck covers the GDS geometry, layers, and pin rules. See the
-[hosted physical run](https://github.com/sul-tan1/nanogpu/actions/runs/45729734282)
+[original hosted physical run](https://github.com/sul-tan1/nanogpu/actions/runs/45729734282)
 for the GDS, precheck, and gate-level artifacts.
 
 ## Demonstration and area comparison
@@ -46,6 +54,9 @@ The full 64×64 gradient takes 10,246 clock cycles from command transfer through
 the last pixel, or 1.0246 ms at 10 MHz with the host ready. The same two-instruction
 program then computes two averages. The RTL and gate-level simulations produced
 byte-identical demo images after a second program shaded an inset rectangle.
+The multiply shader also takes 10,246 cycles. A 32-step burst with two signed
+products per step and final readback takes 203 cycles versus 330 for individual
+MAC commands plus readback, a 38.5% reduction.
 
 Each lane shares one adder across addition, subtraction, and unsigned maximum.
 A Yosys SAT miter proved that the shared datapath agrees with direct arithmetic
@@ -54,7 +65,7 @@ Sky130 HD typical Liberty gave 5,903.16 µm² with separate operators and
 5,829.34 µm² with the shared datapath, a 1.25% reduction in estimated mapped
 cell area. The post-route area above comes from the separate physical flow.
 
-## Build artifacts
+## Historical local build artifacts
 
 The local build used LibreLane 3.0.14, Tiny Tapeout support tools `0922544e`, and
 Sky130A open_pdks `8afc8346a57fe1ab7934ba5a6056ea8b43078e71`. The Tiny Tapeout

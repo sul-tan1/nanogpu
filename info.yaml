@@ -3,7 +3,7 @@ project:
   title: "NanoGPU"
   author: "Emron Arsala"
   discord: "shotf"
-  description: "Two programmable 8-bit SIMD lanes shared by a 2D rectangle renderer and vector compute"
+  description: "Two signed INT8 MAC lanes, programmable vector compute, and grayscale rectangle rendering"
   language: "Verilog"
   clock_hz: 10000000
   tiles: "1x2"

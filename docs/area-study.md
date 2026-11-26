@@ -3,13 +3,14 @@
 These preliminary cell-area estimates guide architecture selection. They do not
 establish complete-chip fit, maximum clock frequency, or physical correctness.
 
-## Tile constraint
+## Original tile constraint
 
-The workshop limit is one digital tile, approximately 161 x 111 micrometers.
+These probes were run for the original one-tile limit.
 The [official Sky130A definition](https://github.com/TinyTapeout/tt-support-tools/blob/main/tech/sky130A/tile_sizes.yaml)
 specifies 161.00 x 111.52 micrometers, or 17,954.72 square micrometers of gross
 footprint. The actual placement region is smaller and must leave room for routing
-and implementation overhead.
+and implementation overhead. The current NanoGPU targets the `1x2` floorplan
+and uses signed multiplication with wider accumulators.
 
 ## Estimates measured November 20, 2026
 
@@ -60,9 +61,8 @@ ABC reported a merged-library conversion warning, then successfully used its
 Liberty fallback. Each mapped netlist passed the structural check and contained
 only recognized, non-excluded library cells.
 
-The basic core is a reasonable next prototype. The larger multiply/MAC variants
-need complete-chip measurements. An iterative multiplier is the next comparison;
-no iterative area result is claimed here.
+The basic core became the original NanoGPU. See the [verification report](verification.md)
+for complete-chip measurements and the signed MAC design.
 
 ## Reproduce on this computer
 

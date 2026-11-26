@@ -15,21 +15,26 @@ module nano_gpu (
     output wire       out_valid,
     input  wire       out_ready
 );
-    localparam [2:0] IDLE = 3'd0, LOAD = 3'd1, COLLECT = 3'd2,
-                     STATUS = 3'd3, SEED_PIXELS = 3'd4, EXECUTE = 3'd5,
-                     OUTPUT_0 = 3'd6, OUTPUT_1 = 3'd7;
-    localparam [1:0] NO_JOB = 2'd0, COMPUTE = 2'd1, DRAW = 2'd2;
-    localparam [1:0] OK = 2'd0, BAD_COMMAND = 2'd1,
-                     BAD_PROGRAM = 2'd2, BAD_RECTANGLE = 2'd3;
+    localparam [3:0] IDLE = 4'd0, LOAD = 4'd1, COLLECT = 4'd2,
+                     STATUS = 4'd3, SEED_PIXELS = 4'd4, EXECUTE = 4'd5,
+                     OUTPUT_0 = 4'd6, OUTPUT_1 = 4'd7, PRODUCT_RESULT = 4'd8,
+                     BURST_LENGTH = 4'd9, ACC_OUTPUT = 4'd10;
+    localparam [2:0] NO_JOB = 3'd0, COMPUTE = 3'd1, DRAW = 3'd2,
+                     READ_ACC = 3'd3, BURST = 3'd4;
+    localparam [2:0] OK = 3'd0, BAD_COMMAND = 3'd1, BAD_PROGRAM = 3'd2,
+                     BAD_RECTANGLE = 3'd3, BAD_COUNT = 3'd4, BAD_MODE = 3'd5;
+    localparam [2:0] MUL_SHIFT4 = 3'd6, MAC = 3'd7;
 
-    reg [2:0] state;
-    reg [1:0] job, status, byte_index;
+    reg [3:0] state;
+    reg [2:0] job, status, acc_byte;
+    reg [1:0] byte_index;
+    reg [7:0] burst_remaining;
 
     // A program is one to four instructions. A missing or rejected program
     // selects a one-instruction identity program without resetting the RAM bits.
     reg [2:0] program_ops [0:3];
     reg [1:0] program_end, pc;
-    reg       program_valid;
+    reg       program_valid, program_has_mac;
     wire [2:0] opcode = program_valid ? program_ops[pc] : 3'd0;
     wire [1:0] last_instruction = program_valid ? program_end : 2'd0;
 
@@ -51,17 +56,28 @@ module nano_gpu (
     wire [7:0] b0 = (job == DRAW) ? {2'b0, scan_y} : operand0;
     wire [7:0] b1 = (job == DRAW) ? {2'b0, scan_y} : operand1;
     wire [7:0] next_result0, next_result1;
-    nano_lane lane0 (.opcode(opcode), .accumulator(result0), .operand(b0), .result(next_result0));
-    nano_lane lane1 (.opcode(opcode), .accumulator(result1), .operand(b1), .result(next_result1));
+    wire [15:0] next_product0, next_product1;
+    reg [15:0] product0, product1;
+    reg [31:0] sum0, sum1;
+    wire [63:0] sums = {sum1, sum0};
+    wire uses_product = job == BURST || opcode == MAC || opcode == MUL_SHIFT4;
 
-    assign in_ready = enable && rst_n && (state == IDLE || state == LOAD || state == COLLECT);
-    assign out_valid = enable && rst_n && (state == STATUS || state == OUTPUT_0 || state == OUTPUT_1);
+    nano_lane lane0 (.opcode(opcode), .accumulator(result0), .operand(b0),
+                     .result(next_result0), .product(next_product0));
+    nano_lane lane1 (.opcode(opcode), .accumulator(result1), .operand(b1),
+                     .result(next_result1), .product(next_product1));
+
+    assign in_ready = enable && rst_n && (state == IDLE || state == LOAD ||
+                                          state == COLLECT || state == BURST_LENGTH);
+    assign out_valid = enable && rst_n && (state == STATUS || state == OUTPUT_0 ||
+                                           state == OUTPUT_1 || state == ACC_OUTPUT);
 
     always @(*) begin
         case (state)
-            STATUS:   out_data = {6'b0, status};
+            STATUS:   out_data = {5'b0, status};
             OUTPUT_0: out_data = result0;
             OUTPUT_1: out_data = result1;
+            ACC_OUTPUT: out_data = sums[{acc_byte, 3'b0} +: 8];
             default:  out_data = 8'd0;
         endcase
     end
@@ -70,9 +86,15 @@ module nano_gpu (
         if (!rst_n) begin
             state <= IDLE;
             program_valid <= 1'b0;
+            program_has_mac <= 1'b0;
             // Keep the sequencer defined before its first command. The mapped
             // counter uses feedback even when the control path clears it.
             pc <= 0;
+            byte_index <= 0;
+            acc_byte <= 0;
+            burst_remaining <= 0;
+            sum0 <= 0;
+            sum1 <= 0;
         end else if (enable) begin
             case (state)
                 IDLE: if (in_valid) begin
@@ -81,10 +103,23 @@ module nano_gpu (
                     job <= NO_JOB;
                     if (in_data[7:2] == 6'b000100) begin
                         program_end <= in_data[1:0];
+                        program_has_mac <= 1'b0;
                         state <= LOAD;
                     end else if (in_data == 8'h20 || in_data == 8'h30) begin
                         job <= (in_data == 8'h20) ? COMPUTE : DRAW;
+                        if (in_data == 8'h30 && program_valid && program_has_mac)
+                            status <= BAD_MODE;
                         state <= COLLECT;
+                    end else if (in_data == 8'h21) begin
+                        sum0 <= 0;
+                        sum1 <= 0;
+                        state <= STATUS;
+                    end else if (in_data == 8'h22) begin
+                        job <= READ_ACC;
+                        state <= STATUS;
+                    end else if (in_data == 8'h23) begin
+                        job <= BURST;
+                        state <= BURST_LENGTH;
                     end else begin
                         status <= BAD_COMMAND;
                         state <= STATUS;
@@ -93,17 +128,29 @@ module nano_gpu (
 
                 LOAD: if (in_valid) begin
                     program_ops[byte_index] <= in_data[2:0];
-                    if (in_data > 8'd5)
+                    if (in_data[7:3] != 0)
                         status <= BAD_PROGRAM;
+                    if (in_data == {5'b0, MAC})
+                        program_has_mac <= 1'b1;
                     byte_index <= byte_index + 2'd1;
                     if (byte_index == program_end) begin
-                        program_valid <= (status == OK) && (in_data <= 8'd5);
+                        program_valid <= (status == OK) && (in_data[7:3] == 0);
                         state <= STATUS;
                     end
                 end
 
+                BURST_LENGTH: if (in_valid) begin
+                    burst_remaining <= in_data;
+                    if (in_data == 0) begin
+                        status <= BAD_COUNT;
+                        state <= STATUS;
+                    end else begin
+                        state <= COLLECT;
+                    end
+                end
+
                 COLLECT: if (in_valid) begin
-                    if (job == COMPUTE) begin
+                    if (job != DRAW) begin
                         case (byte_index)
                             2'd0: result0 <= in_data;
                             2'd1: operand0 <= in_data;
@@ -126,7 +173,7 @@ module nano_gpu (
                     end
                     byte_index <= byte_index + 2'd1;
                     if (byte_index == 2'd3)
-                        state <= STATUS;
+                        state <= (job == BURST) ? EXECUTE : STATUS;
                 end
 
                 STATUS: if (out_ready) begin
@@ -135,6 +182,10 @@ module nano_gpu (
                         state <= IDLE;
                     else if (job == COMPUTE)
                         state <= EXECUTE;
+                    else if (job == READ_ACC || job == BURST) begin
+                        acc_byte <= 0;
+                        state <= ACC_OUTPUT;
+                    end
                     else
                         state <= SEED_PIXELS;
                 end
@@ -146,12 +197,29 @@ module nano_gpu (
                     state <= EXECUTE;
                 end
 
-                EXECUTE: begin
-                    result0 <= next_result0;
-                    result1 <= next_result1;
-                    pc <= pc + 2'd1;
-                    if (pc == last_instruction)
-                        state <= OUTPUT_0;
+                EXECUTE, PRODUCT_RESULT: begin
+                    if (state == EXECUTE && uses_product) begin
+                        // Break the multiplier and 32-bit addition into two cycles.
+                        product0 <= next_product0;
+                        product1 <= next_product1;
+                        state <= PRODUCT_RESULT;
+                    end else begin
+                        if (state == PRODUCT_RESULT && (job == BURST || opcode == MAC)) begin
+                            sum0 <= sum0 + {{16{product0[15]}}, product0};
+                            sum1 <= sum1 + {{16{product1[15]}}, product1};
+                        end
+
+                        if (job == BURST) begin
+                            burst_remaining <= burst_remaining - 8'd1;
+                            state <= (burst_remaining == 8'd1) ? STATUS : COLLECT;
+                        end else begin
+                            // MAC updates the wide sum. Its byte result passes through.
+                            result0 <= (opcode == MUL_SHIFT4) ? product0[11:4] : next_result0;
+                            result1 <= (opcode == MUL_SHIFT4) ? product1[11:4] : next_result1;
+                            pc <= pc + 2'd1;
+                            state <= (pc == last_instruction) ? OUTPUT_0 : EXECUTE;
+                        end
+                    end
                 end
 
                 OUTPUT_0, OUTPUT_1: if (out_ready) begin
@@ -170,6 +238,12 @@ module nano_gpu (
                     end
                 end
 
+                ACC_OUTPUT: if (out_ready) begin
+                    acc_byte <= acc_byte + 3'd1;
+                    if (acc_byte == 3'd7)
+                        state <= IDLE;
+                end
+
                 default: state <= IDLE;
             endcase
         end
@@ -180,13 +254,16 @@ module nano_lane (
     input  wire [2:0] opcode,
     input  wire [7:0] accumulator,
     input  wire [7:0] operand,
-    output reg  [7:0] result
+    output reg  [7:0] result,
+    output wire [15:0] product
 );
     // Subtraction and unsigned comparison both use A + ~B + 1. The
     // ninth sum bit indicates no borrow, so MAX also reuses the adder.
     wire subtract = (opcode == 3'd2) || (opcode == 3'd4);
     wire [7:0] adder_b = operand ^ {8{subtract}};
     wire [8:0] sum = {1'b0, accumulator} + {1'b0, adder_b} + {8'b0, subtract};
+
+    assign product = $signed(accumulator) * $signed(operand);
 
     always @(*) begin
         case (opcode)

@@ -42,7 +42,7 @@ make
 python -m cocotb_tools.check_results results.xml
 ```
 
-The demo is `test/output/nanogpu.png` and the waveform is `test/tb.fst`, relative
+The demos are in `test/output/` and the waveform is `test/tb.fst`, relative
 to the repository root.
 
 ## GitHub repository
