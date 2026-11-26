@@ -18,8 +18,7 @@ In a PowerShell terminal:
 .\tt.cmd doctor
 .\tt.cmd lint
 .\tt.cmd test
-.\tt.cmd synth
-.\tt.cmd wave
+Start-Process .\test\output\nanogpu.png
 ```
 
 Setup is already prepared on this computer. If tool locations change, run
@@ -46,10 +45,10 @@ measured area, timing, and status of the fabrication submission.
 | `docs/info.md` | Datasheet, host protocol, and hardware demo. |
 | `src/config.json` | Physical implementation configuration and 100 ns clock period. |
 
-The GitHub workflow includes RTL lint/tests, GDS generation, precheck, gate-level
-simulation, documentation, and the layout viewer. FPGA builds are optional and
-manual. This local repository needs its own GitHub origin before those workflows
-can run remotely.
+Each push triggers RTL lint and tests, GDS generation, precheck, gate-level
+simulation, documentation, and layout publication. Track the jobs in [GitHub
+Actions](https://github.com/sul-tan1/nanogpu/actions) and open the [3D layout
+viewer](https://sul-tan1.github.io/nanogpu/). FPGA builds are optional and manual.
 
 Build reports appear in `build/synth/` and waveforms in `test/`. See the
 [Windows and GitHub setup](docs/windows-and-github.md) for hardening and artifact locations.

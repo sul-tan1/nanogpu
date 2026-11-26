@@ -60,6 +60,6 @@ Start-Process .\test\output\nanogpu.png
 Start-Process .\build\physical-slew\layout.png
 ```
 
-GitHub Actions, the Pages layout viewer, and manufacturing submission are
-pending. See [GitHub setup](windows-and-github.md) and the official
+See the [GitHub workflow guide](windows-and-github.md) for hosted checks and the
+layout viewer. Manufacturing submission is pending. See the official
 [Tiny Tapeout submission guide](https://www.tinytapeout.com/guides/advanced-workshop/submit-your-design/).
